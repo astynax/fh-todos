@@ -1,3 +1,4 @@
 /.sesskey
 /.python-version
 /db.json
+*/__pycache__/
