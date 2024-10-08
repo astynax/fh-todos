@@ -23,12 +23,12 @@ def list_items():
     return sorted((int(k), v) for k, v in _read_db()["items"].items())
 
 
-def delete_item(item_id):
+def delete_item(item_id: str):
     with _context() as data:
         del data["items"][item_id]
 
 
-def add_item(title):
+def add_item(title: str) -> int:
     with _context() as data:
         next_id = data["seq"]
         data["seq"] += 1
@@ -36,6 +36,7 @@ def add_item(title):
             "title": title,
             "done": False,
         }
+        return next_id
 
 
 def toggle_item(item_id: str) -> bool:

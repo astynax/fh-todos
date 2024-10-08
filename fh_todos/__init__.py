@@ -19,7 +19,12 @@ def get():
                         ft.Th("Task", role="col"),
                         ft.Th("Actions", role="col", style="width: 1%;"),
                     ),
-                    item_table()
+                    ft.Tbody((
+                        item(item_id, i["title"], i["done"])
+                        for item_id, i in db.list_items()
+                    ),
+                        id="item-table",
+                    )
                 )),
             ft.Section(
                 ft.H3("New task"),
@@ -39,26 +44,22 @@ def get():
         ))
 
 
-def item_table():
-    return ft.Tbody((
-        ft.Tr(
-            ft.Td(
-                done_checkbox(item_id, item["done"]),
-            ),
-            ft.Td(item["title"]),
-            ft.Td(
-                ft.Button(
-                    "Delete",
-                    hx_delete=f"/{item_id}",
-                    hx_confirm="Are you sure?",
-                    hx_target=f"#tr-{item_id}",
-                    hx_swap="delete",
-                )
-            ),
-            id=f"tr-{item_id}",
-        ) for item_id, item in db.list_items()),
-        id="item-table",
-        hx_swap_oob="outerHTML",
+def item(item_id, title: str, done: bool):
+    return ft.Tr(
+        ft.Td(
+            done_checkbox(item_id, done),
+        ),
+        ft.Td(title),
+        ft.Td(
+            ft.Button(
+                "Delete",
+                hx_delete=f"/{item_id}",
+                hx_confirm="Are you sure?",
+                hx_target=f"#tr-{item_id}",
+                hx_swap="delete",
+            )
+        ),
+        id=f"tr-{item_id}",
     )
 
 
@@ -76,10 +77,16 @@ def done_checkbox(item_id, done):
 async def post(request: Request):
     f = await request.form()
     title = f.get("title")
-    if title:
-        db.add_item(title)
-    # TODO: replace the whole table refresh with the row insertion
-    return item_table(), ft.Input(name="title", type="text")
+    # TODO: replace with Bad Request
+    assert title
+    item_id = db.add_item(title)
+    return (
+        ft.Tbody(
+        item(item_id, title, done=False),
+            hx_swap_oob="beforeend:#item-table",
+        ),
+        ft.Input(name="title", type="text"),
+    )
 
 
 @rt("/{item_id}")
