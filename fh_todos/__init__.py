@@ -1,11 +1,9 @@
-import os
 from pathlib import Path
 
-from fasthtml.common import fast_app, Request, serve
 from fasthtml import ft
+from fasthtml.common import fast_app, Request, serve, FT
 
 from .db import Store
-
 
 app, rt, todos, TodoItem = fast_app(
     debug=True,
@@ -62,7 +60,7 @@ def get():
         ))
 
 
-def item(record: TodoItem):
+def item(record: TodoItem) -> FT:
     return ft.Tr(
         ft.Td(
             done_checkbox(record.id, record.done),
@@ -81,7 +79,7 @@ def item(record: TodoItem):
     )
 
 
-def done_checkbox(item_id, done):
+def done_checkbox(item_id, done) -> FT:
     return ft.Input(
         type="checkbox",
         checked=done,
@@ -113,7 +111,7 @@ def delete(item_id: int):
 
 
 @rt("/{item_id}")
-def put(item_id: int):
+def put(item_id: int) -> FT:
     done = db.toggle_item(item_id)
     return done_checkbox(item_id, done=done)
 
