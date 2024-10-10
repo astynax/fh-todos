@@ -1,46 +1,26 @@
-from contextlib import contextmanager
-import json
+from dataclasses import dataclass
+from typing import Iterable, cast, Callable, Mapping
+
+from fastlite import Table
 
 
-def _read_db():
-    with open("db.json") as f:
-        return json.load(f)
+@dataclass
+class Store[T]:
+    table: Table
+    model: T
 
+    def list_items(self) -> Iterable[T]:
+        return cast(Callable, self.table)(order_by="id")
 
-def _save_db(data):
-    with open("db.json", "w") as f:
-        return json.dump(data, f)
+    def add_item(self, title: str) -> T:
+        return self.table.insert(self.model(title=title, done=False))
 
+    def delete_item(self, item_id: int):
+        self.table.delete(item_id)
 
-@contextmanager
-def _context():
-    data = _read_db()
-    yield data
-    _save_db(data)
-
-
-def list_items():
-    return sorted((int(k), v) for k, v in _read_db()["items"].items())
-
-
-def delete_item(item_id: str):
-    with _context() as data:
-        del data["items"][item_id]
-
-
-def add_item(title: str) -> int:
-    with _context() as data:
-        next_id = data["seq"]
-        data["seq"] += 1
-        data["items"][str(next_id)] = {
-            "title": title,
-            "done": False,
-        }
-        return next_id
-
-
-def toggle_item(item_id: str) -> bool:
-    with _context() as data:
-        new_state = not data["items"][item_id]["done"]
-        data["items"][item_id]["done"] = new_state
-        return new_state
+    def toggle_item(self, item_id: int) -> bool:
+        self.table.db.execute(
+            "UPDATE todos SET done = not(done) where id = ?",
+            [item_id],
+        )
+        return cast(Mapping, self.table)[item_id].done

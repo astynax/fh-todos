@@ -1,9 +1,28 @@
+import os
+from pathlib import Path
+
 from fasthtml.common import fast_app, Request, serve
 from fasthtml import ft
 
-from fh_todos import db
+from .db import Store
 
-app, rt = fast_app()
+
+app, rt, todos, TodoItem = fast_app(
+    debug=True,
+    db_file=str(Path(__file__).absolute().parent.parent / "db.sqlite3"),
+    todos={
+        "columns": {
+            "id": int,
+            "title": str,
+            "done": bool,
+        },
+        "pk": "id",
+        "not_null": {"title", "done"},
+    }
+)
+
+
+db = Store[TodoItem](todos, TodoItem)
 
 
 @rt('/')
@@ -20,8 +39,7 @@ def get():
                         ft.Th("Actions", role="col", style="width: 1%;"),
                     ),
                     ft.Tbody((
-                        item(item_id, i["title"], i["done"])
-                        for item_id, i in db.list_items()
+                        item(i) for i in db.list_items()
                     ),
                         id="item-table",
                     )
@@ -44,22 +62,22 @@ def get():
         ))
 
 
-def item(item_id, title: str, done: bool):
+def item(record: TodoItem):
     return ft.Tr(
         ft.Td(
-            done_checkbox(item_id, done),
+            done_checkbox(record.id, record.done),
         ),
-        ft.Td(title),
+        ft.Td(record.title),
         ft.Td(
             ft.Button(
                 "Delete",
-                hx_delete=f"/{item_id}",
+                hx_delete=f"/{record.id}",
                 hx_confirm="Are you sure?",
-                hx_target=f"#tr-{item_id}",
+                hx_target=f"#tr-{record.id}",
                 hx_swap="delete",
             )
         ),
-        id=f"tr-{item_id}",
+        id=f"tr-{record.id}",
     )
 
 
@@ -79,10 +97,10 @@ async def post(request: Request):
     title = f.get("title")
     # TODO: replace with Bad Request
     assert title
-    item_id = db.add_item(title)
+    new_item = db.add_item(title)
     return (
         ft.Tbody(
-        item(item_id, title, done=False),
+        item(new_item),
             hx_swap_oob="beforeend:#item-table",
         ),
         ft.Input(name="title", type="text"),
@@ -90,13 +108,12 @@ async def post(request: Request):
 
 
 @rt("/{item_id}")
-def delete(item_id: str):
+def delete(item_id: int):
     db.delete_item(item_id)
-    return ""
 
 
 @rt("/{item_id}")
-def put(item_id: str):
+def put(item_id: int):
     done = db.toggle_item(item_id)
     return done_checkbox(item_id, done=done)
 
